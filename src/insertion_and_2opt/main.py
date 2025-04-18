@@ -1,12 +1,11 @@
 # main.py
 import time
-import matplotlib.pyplot as plt
 from . import input_generator
 from . import insertion_heuristic
 from . import local_search
 from . import utils
 
-# import matplotlib.pyplot as plt # 可視化する場合
+CONSIDER_TIME_WINDOW = True  # タイムウィンドウを考慮するかどうか
 
 # --- パラメータ設定 ---
 N = 100  # 配送先数 (ドキュメントは100だが、デモ用に小さく)
@@ -26,6 +25,10 @@ print(f"Locations: {N}, Area: {W}x{H}, Speed: {V} km/h, Seed: {SEED}")
 start_gen = time.time()
 locations = input_generator.generate_locations(N, W, H)
 time_windows = input_generator.generate_time_windows(N)  # N個の配送先に対するTW
+if not CONSIDER_TIME_WINDOW:
+    time_windows_tmp = time_windows
+    # タイムウィンドウを考慮しない場合は、すべての時間帯を許容する
+    time_windows = input_generator.generate_time_windows_whenever(N)
 end_gen = time.time()
 
 print(f"Generated {N} locations and time windows in {end_gen - start_gen:.4f} seconds.")
@@ -42,33 +45,6 @@ initial_route = insertion_heuristic.build_initial_route_insertion(
     locations, time_windows, V, start_node_strategy="farthest"
 )
 end_insert = time.time()
-
-
-def plot_route(route, locations, title):
-    plt.figure(figsize=(8, 8))
-    depot = locations[utils.DEPOT_INDEX]
-    cust_x = [loc[0] for i, loc in enumerate(locations) if i != utils.DEPOT_INDEX]
-    cust_y = [loc[1] for i, loc in enumerate(locations) if i != utils.DEPOT_INDEX]
-
-    plt.scatter(cust_x, cust_y, c="blue", label="Customers")
-    plt.scatter(depot[0], depot[1], c="red", marker="s", s=100, label="Depot")
-
-    # 経路を描画
-    route_x = [locations[i][0] for i in route]
-    route_y = [locations[i][1] for i in route]
-    plt.plot(route_x, route_y, "g-")
-
-    # 地点番号を表示
-    for i, loc in enumerate(locations):
-        plt.text(loc[0], loc[1] + 0.5, str(i), fontsize=9)
-
-    plt.title(title)
-    plt.xlabel("X coordinate")
-    plt.ylabel("Y coordinate")
-    plt.legend()
-    plt.grid(True)
-    plt.axis("equal")
-    plt.show()
 
 
 if initial_route:
@@ -114,13 +90,27 @@ if initial_route:
     else:
         print("Improved route is infeasible! (Should not happen if LS starts feasible)")
 
+    # --- 4. タイムウィンドウの違反数をカウント (タイムウィンドウを考慮しない場合) ---
+    if not CONSIDER_TIME_WINDOW:
+        time_windows_ = time_windows_tmp
+        print("\n--- 4. Counting Time Window Violations ---")
+        violation_count = utils.count_time_window_violations(
+            improved_route, locations, time_windows_tmp, V
+        )
+        print(f"Time window violations: {violation_count}")
+
     # --- (Optional) 可視化 ---
-    plot_route(
-        initial_route, locations, f"Initial Route (Cost: {cost_init/60.0:.2f} hrs)"
-    )
-    plot_route(
-        improved_route, locations, f"Improved Route (Cost: {cost_imp/60.0:.2f} hrs)"
-    )
+
+    # # タイムウィンドウの表示
+    # utils.show_time_windows(time_windows)
+
+    # # 経路の可視化
+    # utils.plot_route(
+    #     initial_route, locations, f"Initial Route (Cost: {cost_init/60.0:.2f} hrs)"
+    # )
+    # utils.plot_route(
+    #     improved_route, locations, f"Improved Route (Cost: {cost_imp/60.0:.2f} hrs)"
+    # )
 
 
 else:

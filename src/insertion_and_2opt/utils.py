@@ -1,6 +1,7 @@
 # utils.py
 import math
 from typing import List, Tuple, Optional
+import matplotlib.pyplot as plt
 
 # 型エイリアス
 Location = Tuple[float, float]
@@ -171,3 +172,160 @@ def calculate_route_cost(route: Route, locations: List[Location], V: float) -> f
         to_loc = locations[route[i + 1]]
         total_time += calculate_travel_time(from_loc, to_loc, V)
     return total_time
+
+
+def count_time_window_violations(
+    route: Route,
+    locations: List[Location],
+    time_windows: TimeWindows,
+    V: float,
+    start_time: float = START_HOUR * 60.0,
+    max_wait_time: float = 10.0,
+) -> int:
+    """
+    指定された経路において、時間枠制約を満たせない配送先の数をカウントする。
+    途中で違反があっても計算を続け、総違反数を返す。
+
+    Args:
+        route: デポで始まりデポで終わる訪問順リスト [0, i, j, ..., 0]
+        locations: デポを含む全地点の座標リスト
+        time_windows: 各配送先の許容時間帯リスト (配送先1からNまで)
+        V: 移動速度 (距離単位/時)
+        start_time: デポ出発時刻 (分単位)
+        max_wait_time: 最大待機時間 (分単位)
+
+    Returns:
+        int: 時間枠制約違反の配送先数
+    """
+    current_time: Optional[float] = start_time  # 計算不能になった場合 None になる可能性
+    violation_count = 0
+
+    # --- 入力チェック ---
+    if not route or route[0] != DEPOT_INDEX or route[-1] != DEPOT_INDEX:
+        num_customers = len(locations) - 1
+        print(
+            "Warning: Invalid route structure provided to count_time_window_violations."
+        )
+        # 不正な経路の場合、全顧客が違反とみなす
+        return num_customers if num_customers > 0 else 0
+
+    if V <= 0:
+        num_customers = len(locations) - 1
+        print("Warning: Non-positive velocity (V) provided.")
+        # 速度が0以下なら全顧客訪問不可
+        return num_customers if num_customers > 0 else 0
+
+    # --- 経路を順にたどる ---
+    for i in range(len(route) - 1):
+        from_loc_idx = route[i]
+        to_loc_idx = route[i + 1]
+
+        # 前の地点からの出発時刻が計算不能なら、以降も計算不能
+        if current_time is None:
+            # この地点が顧客なら違反カウント
+            if to_loc_idx != DEPOT_INDEX:
+                violation_count += 1
+            continue  # 次の地点へ（current_time は None のまま）
+
+        # --- 移動時間と到着時刻の計算 ---
+        travel_t = calculate_travel_time(
+            locations[from_loc_idx], locations[to_loc_idx], V
+        )
+        # 移動時間が無限大の場合（V=0など）、以降の地点は到達不能
+        if travel_t == float("inf"):
+            print(
+                f"Warning: Infinite travel time from {from_loc_idx} to {to_loc_idx}. Subsequent locations marked as violations."
+            )
+            current_time = None  # 以降の計算を不能にする
+            # この地点が顧客なら違反カウント
+            if to_loc_idx != DEPOT_INDEX:
+                violation_count += 1
+            continue  # 次の地点へ
+
+        arrival_time = current_time + travel_t
+
+        # --- 時間枠チェック (次の地点がデポ以外の場合) ---
+        departure_time = arrival_time  # 違反した場合やデポの場合のデフォルト出発時刻
+        is_violation = False
+
+        if to_loc_idx != DEPOT_INDEX:
+            allowed_intervals = get_time_window_intervals(to_loc_idx, time_windows)
+
+            # 1. 許容時間帯が存在しない場合 -> 違反
+            if not allowed_intervals:
+                is_violation = True
+            else:
+                # 2. 到着時刻が最も遅い許容終了時刻を過ぎている場合 -> 違反
+                latest_possible_end = max(interval[1] for interval in allowed_intervals)
+                if arrival_time >= latest_possible_end:
+                    is_violation = True
+                else:
+                    # 3. どの許容時間帯でもサービスを開始できない場合 -> 違反
+                    possible_starts = []
+                    for start_min, end_min in allowed_intervals:
+                        potential_start = max(arrival_time, start_min)
+                        if potential_start < end_min:
+                            possible_starts.append(potential_start)
+
+                    if not possible_starts:
+                        is_violation = True
+                    else:
+                        # 違反なしの場合: サービス開始時刻と出発時刻を計算
+                        service_start_time = min(possible_starts)
+                        waiting_time = service_start_time - arrival_time
+                        # 最大待機時間を超える場合 -> 違反
+                        if waiting_time > max_wait_time:
+                            is_violation = True
+                        else:
+                            # サービス開始時刻が決まった場合、出発時刻を計算
+                            departure_time = service_start_time + SERVICE_TIME
+
+            # 違反があればカウント
+            if is_violation:
+                violation_count += 1
+                # 違反した場合でも計算を続けるため、出発時刻は到着時刻とする
+                # (サービス時間0なので、実質的に到着後すぐ出発したと仮定)
+                departure_time = arrival_time + SERVICE_TIME
+
+        # --- 次の地点への計算のため、現在時刻を更新 ---
+        # (もし current_time が None になっていたら、departure_time も None のまま)
+        current_time = departure_time if current_time is not None else None
+
+    return violation_count
+
+
+def show_time_windows(time_windows: TimeWindows):
+    print("\n--- Time Windows ---")
+    print("Location Index | Time Window")
+    print("---------------|----------------")
+    for i, tw in enumerate(time_windows):
+        tw_str = map(lambda x: " " if x == 0 else "=", tw)
+        print(f" {str(i + 1).zfill(3)}{" "*11}| {''.join(tw_str)}")
+    print("---------------|----------------")
+
+
+def plot_route(route, locations, title):
+    plt.figure(figsize=(8, 8))
+    depot = locations[DEPOT_INDEX]
+    cust_x = [loc[0] for i, loc in enumerate(locations) if i != DEPOT_INDEX]
+    cust_y = [loc[1] for i, loc in enumerate(locations) if i != DEPOT_INDEX]
+
+    plt.scatter(cust_x, cust_y, c="blue", label="Customers")
+    plt.scatter(depot[0], depot[1], c="red", marker="s", s=100, label="Depot")
+
+    # 経路を描画
+    route_x = [locations[i][0] for i in route]
+    route_y = [locations[i][1] for i in route]
+    plt.plot(route_x, route_y, "g-")
+
+    # 地点番号を表示
+    for i, loc in enumerate(locations):
+        plt.text(loc[0], loc[1] + 0.5, str(i), fontsize=9)
+
+    plt.title(title)
+    plt.xlabel("X coordinate")
+    plt.ylabel("Y coordinate")
+    plt.legend()
+    plt.grid(True)
+    plt.axis("equal")
+    plt.show()

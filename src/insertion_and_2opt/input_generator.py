@@ -37,3 +37,16 @@ def generate_time_windows(N: int) -> TimeWindows:
                 time_windows.append(allowed_list)
                 break
     return time_windows
+
+
+def generate_time_windows_whenever(N: int) -> TimeWindows:
+    """
+    N個の各配送先にランダムなタイムウィンドウ(8時-21時の1時間スロット)を割り当てる。
+    """
+    time_windows: TimeWindows = []
+    num_slots = HOURS_IN_WINDOW  # 8-9, 9-10, ..., 20-21 の 13 スロット
+
+    for _ in range(N):
+        allowed_list: TimeWindowAllowedList = [1 for _ in range(num_slots)]
+        time_windows.append(allowed_list)
+    return time_windows
