@@ -102,7 +102,7 @@ if initial_route:
     # --- (Optional) 可視化 ---
 
     # # タイムウィンドウの表示
-    # utils.show_time_windows(time_windows)
+    utils.show_time_windows(time_windows)
 
     # # 経路の可視化
     # utils.plot_route(

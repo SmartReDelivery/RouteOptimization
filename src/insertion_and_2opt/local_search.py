@@ -1,7 +1,8 @@
 # local_search.py
-import random
 import itertools
+import random
 from typing import List
+
 from .utils import (
     Location,
     Route,
@@ -68,8 +69,8 @@ def improve_route_local_search(
         # デポ(0)を除外してインデックスを考える必要がある route = [0, c1, c2, ..., cn, 0] 長さ n+2
         # i は 0 から n   (route[i] と route[i+1] の間の辺)
         # j は i+1 から n (route[j] と route[j+1] の間の辺)
-        indices = list(range(len(current_route) - 1))  # 0 to n
-        random.shuffle(indices)  # 試す順番をランダム化
+        # indices = list(range(len(current_route) - 1))  # 0 to n
+        # random.shuffle(indices)  # 試す順番をランダム化
 
         # 辺 (route[i], route[i+1]) と (route[j], route[j+1]) を選ぶ
         # i は 0 から len-3 まで

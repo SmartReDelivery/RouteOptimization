@@ -296,6 +296,12 @@ def count_time_window_violations(
 
 def show_time_windows(time_windows: TimeWindows):
     print("\n--- Time Windows ---")
+    coutn_of_1 = sum(sum(1 for allowed in tw if allowed == 1) for tw in time_windows)
+    coutn_of_0 = sum(sum(1 for allowed in tw if allowed == 0) for tw in time_windows)
+    print(f"Total Time Windows: {coutn_of_1 + coutn_of_0}")
+    print(f"  Allowed (1): {coutn_of_1}")
+    print(f"  Not Allowed (0): {coutn_of_0}")
+    print(f"  Ratio: {coutn_of_1 / (coutn_of_1 + coutn_of_0) * 100:.2f}%")
     print("Location Index | Time Window")
     print("---------------|----------------")
     for i, tw in enumerate(time_windows):
