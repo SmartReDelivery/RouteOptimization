@@ -1,9 +1,7 @@
 # main.py
 import time
-from . import input_generator
-from . import insertion_heuristic
-from . import local_search
-from . import utils
+
+from . import input_generator, insertion_heuristic, local_search, utils
 
 CONSIDER_TIME_WINDOW = True  # タイムウィンドウを考慮するかどうか
 
@@ -28,7 +26,7 @@ time_windows = input_generator.generate_time_windows(N)  # N個の配送先に�
 if not CONSIDER_TIME_WINDOW:
     time_windows_tmp = time_windows
     # タイムウィンドウを考慮しない場合は、すべての時間帯を許容する
-    time_windows = input_generator.generate_time_windows_whenever(N)
+    time_windows = input_generator.generate_time_windows(N, mode="all")
 end_gen = time.time()
 
 print(f"Generated {N} locations and time windows in {end_gen - start_gen:.4f} seconds.")

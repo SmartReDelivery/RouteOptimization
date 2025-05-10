@@ -1,7 +1,8 @@
 # utils.py
 import math
-from typing import List, Tuple, Optional
-import matplotlib.pyplot as plt
+import random
+import time
+from typing import List, Optional, Tuple
 
 # 型エイリアス
 Location = Tuple[float, float]
@@ -310,28 +311,60 @@ def show_time_windows(time_windows: TimeWindows):
     print("---------------|----------------")
 
 
-def plot_route(route, locations, title):
-    plt.figure(figsize=(8, 8))
+def plot_route(route, locations, title, ax, cost=None):
+    if cost is not None:
+        title += f" (Cost: {cost:.2f} min)"
+
     depot = locations[DEPOT_INDEX]
     cust_x = [loc[0] for i, loc in enumerate(locations) if i != DEPOT_INDEX]
     cust_y = [loc[1] for i, loc in enumerate(locations) if i != DEPOT_INDEX]
 
-    plt.scatter(cust_x, cust_y, c="blue", label="Customers")
-    plt.scatter(depot[0], depot[1], c="red", marker="s", s=100, label="Depot")
+    ax.scatter(cust_x, cust_y, c="blue", label="Customers")
+    ax.scatter(depot[0], depot[1], c="red", marker="s", s=100, label="Depot")
 
     # 経路を描画
     route_x = [locations[i][0] for i in route]
     route_y = [locations[i][1] for i in route]
-    plt.plot(route_x, route_y, "g-")
+    ax.plot(route_x, route_y, "g-")
 
     # 地点番号を表示
     for i, loc in enumerate(locations):
-        plt.text(loc[0], loc[1] + 0.5, str(i), fontsize=9)
+        ax.text(loc[0], loc[1] + 0.5, str(i), fontsize=9)
 
-    plt.title(title)
-    plt.xlabel("X coordinate")
-    plt.ylabel("Y coordinate")
-    plt.legend()
-    plt.grid(True)
-    plt.axis("equal")
-    plt.show()
+    ax.set_title(title)
+    ax.set_xlabel("X coordinate")
+    ax.set_ylabel("Y coordinate")
+    ax.legend()
+    ax.grid(True)
+    ax.axis("equal")
+
+
+def with_time_measurement(func):
+    """
+    デコレータ: 関数の実行時間を計測する
+    """
+
+    def wrapper(*args, msg="", **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        delta = end_time - start_time
+        print(f"Execution time: {delta:.4f} seconds, for {func.__name__} {msg}")
+        return delta, result
+
+    return wrapper
+
+
+def random_route(locations, time_windows, V):
+    """
+    ランダムな実行可能経路を生成する
+    """
+    for i in range(100000):
+        route_tmp = list(range(1, len(locations)))
+        random.shuffle(route_tmp)
+        route_tmp.sort(key=lambda x: time_windows[x - 1].index(1))
+        route = [0] + route_tmp + [0]
+        f, _, _ = check_time_window_feasibility(route, locations, time_windows, V)
+        if f:
+            return route
+    raise ValueError("No feasible route found in 100000 attempts.")

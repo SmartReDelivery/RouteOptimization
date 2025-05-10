@@ -1,7 +1,10 @@
 # local_search.py
+
 import itertools
 import random
 from typing import List
+
+from tqdm import tqdm
 
 from .utils import (
     Location,
@@ -57,10 +60,8 @@ def improve_route_local_search(
     print(f"Local Search starting with cost: {current_cost:.2f}")
 
     improvement_found = True
-    iteration = 0
-    while improvement_found and iteration < max_iterations:
+    for iteration in tqdm(range(max_iterations), desc="Local Search Iterations"):
         improvement_found = False
-        iteration += 1
         # print(f"Iteration {iteration}...") # Debug
 
         # 2-optの辺の組み合わせを試す (デポ間の辺は変更しない)
@@ -103,6 +104,9 @@ def improve_route_local_search(
                 # print(f"  Improved! New cost: {current_cost:.2f} with 2-opt ({i}, {j})") # Debug
                 # First Improvement: 改善が見つかったら、次のイテレーションへ
                 break  # 内側のループ (ペア探索) を抜ける
+
+        if not improvement_found:
+            break
 
         # if not improvement_found:
         # print("No improvement found in this iteration.")
