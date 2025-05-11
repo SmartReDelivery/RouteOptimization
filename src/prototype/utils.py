@@ -368,3 +368,37 @@ def random_route(locations, time_windows, V):
         if f:
             return route
     raise ValueError("No feasible route found in 100000 attempts.")
+
+
+def total_att_distance(route, locations):
+    total_att = 0
+    for i in range(len(route) - 1):
+        x1, y1 = locations[route[i]]
+        x2, y2 = locations[route[i + 1]]
+        att_dist = calculate_att_distance_round(x1, y1, x2, y2)
+        total_att += att_dist
+    return total_att
+
+
+def calculate_att_distance_round(x1, y1, x2, y2):
+    """
+    2点間のATT距離を計算します (round()を使用)。
+
+    Args:
+      x1: 点1のx座標
+      y1: 点1のy座標
+      x2: 点2のx座標
+      y2: 点2のy座標
+
+    Returns:
+      計算されたATT距離 (整数)
+    """
+    dx = float(x1) - float(x2)
+    dy = float(y1) - float(y2)
+    # ユークリッド距離の2乗
+    dist_sq = dx**2 + dy**2
+    # ユークリッド距離
+    dist = math.sqrt(dist_sq / 10)
+    # 最も近い整数に丸める
+    att_dist = math.floor(dist + 0.5)
+    return att_dist

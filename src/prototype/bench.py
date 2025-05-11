@@ -9,6 +9,7 @@ from . import (
     genetic_algorithm,
     input_generator,
     insertion_heuristic,
+    load,
     local_search,
     utils,
 )
@@ -27,13 +28,24 @@ local_search.random.seed(SEED)
 utils.random.seed(SEED)
 
 
-def run_benchmark(N, W, H, V):
+def run_benchmark(N, W, H, V, file_path=None):
     # locations_tmp = input_generator.generate_locations(N, W, H, mode="double_circle")
-    locations_tmp = input_generator.generate_locations(N, W, H, mode="random")
+    if file_path is not None:
+        locations_tmp = load.load_location_tsplib(file_path)
+        # recenter locations
+        location_mean_x = sum(x for x, _ in locations_tmp) / len(locations_tmp)
+        location_mean_y = sum(y for _, y in locations_tmp) / len(locations_tmp)
+        locations_tmp = [
+            (x - location_mean_x, y - location_mean_y) for x, y in locations_tmp
+        ]
+        N = len(locations_tmp) - 1  # デポを除く
+    else:
+        locations_tmp = input_generator.generate_locations(N, W, H, mode="random")
     time_windows_tmp = input_generator.generate_time_windows(
         N, mode="proportional", locations=locations_tmp[1:]
     )
     time_windows_all_tmp = input_generator.generate_time_windows(N, mode="all")
+    time_windows_tmp = time_windows_all_tmp
 
     random_indices = list(range(1, N + 1))
     random.shuffle(random_indices)
@@ -147,7 +159,9 @@ def random_ga(locations, time_windows, V, population_size=100):
 
 
 if __name__ == "__main__":
-    result = run_benchmark(N, W, H, V)
+    # result = run_benchmark(N, W, H, V)
+    V = 10000
+    result = run_benchmark(N, W, H, V, file_path="src/prototype/asset/att48.tsp")
     fig, ax = plt.subplots(1, 3, figsize=(15, 6))
     fig.suptitle("Route Optimization with Home Delivery Time Windows")
     utils.plot_route(
@@ -172,4 +186,69 @@ if __name__ == "__main__":
         cost=result["cost_ga"],
     )
     plt.show()
-    print(result["violation"])
+    att_insertion_2opt = utils.total_att_distance(
+        result["optimized_route"], result["locations"]
+    )
+    att_insertion_ga = utils.total_att_distance(
+        result["optimized_route_ga"], result["locations"]
+    )
+    att_insertion_ga_random = utils.total_att_distance(
+        result["optimized_route_ga_random"], result["locations"]
+    )
+    att_insertion_2opt_all = utils.total_att_distance(
+        result["optimized_route_all"], result["locations"]
+    )
+    print(
+        f"""\
+    --- Benchmark Results ---
+    Locations: {N}, Area: {W}x{H}, Speed: {V} km/h, Seed: {SEED}
+    1. Insertion + 2-opt
+    cost: {result["cost"]:.2f} minutes ({result["cost"] * V / 60:.2f} km)
+    time: {result["delta"]:.2f} seconds
+    att: {att_insertion_2opt}
+    1'. All Time Windows
+    cost: {result["cost_all"]:.2f} minutes ({result["cost_all"] * V / 60:.2f} km)
+    time: {result["delta_all"]:.2f} seconds
+    violation: {result["violation"]} time windows violated
+    att: {att_insertion_2opt_all}
+    2. Insertion + GA
+    cost: {result["cost_ga"]:.2f} minutes ({result["cost_ga"] * V / 60:.2f} km)
+    time: {result["delta_ga"]:.2f} seconds
+    att: {att_insertion_ga}
+    3. Primitive GA
+    cost: {result["cost_ga_random"]:.2f} minutes ({result["cost_ga_random"] * V / 60:.2f} km)
+    time: {result["delta_ga_random"]:.2f} seconds
+    att: {att_insertion_ga_random}
+    """
+    )
+
+
+# --- Benchmark Results ---
+# Locations: 75, Area: 10.0x10.0, Speed: 10000 km/h, Seed: 42
+# 1. Insertion + 2-opt
+# cost: 222.06 minutes (37010.72 km)
+# time: 0.08 seconds
+# att: 11703
+# 2. Insertion + GA
+# cost: 212.74 minutes (35456.16 km)
+# time: 4.77 seconds
+# att: 11210
+# 3. Primitive GA
+# cost: 219.35 minutes (36558.15 km)
+# time: 4.94 seconds
+# att: 11558
+
+# --- Benchmark Results ---
+# Locations: 75, Area: 10.0x10.0, Speed: 10000 km/h, Seed: 42
+# 1. Insertion + 2-opt
+# cost: 208.19 minutes (34698.51 km)
+# time: 0.32 seconds
+# att: 10970
+# 2. Insertion + GA
+# cost: 202.70 minutes (33784.03 km)
+# time: 15.39 seconds
+# att: 10679
+# 3. Primitive GA
+# cost: 201.53 minutes (33588.34 km)
+# time: 14.82 seconds
+# att: 10618
